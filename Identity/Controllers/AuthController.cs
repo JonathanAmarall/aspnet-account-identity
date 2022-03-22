@@ -1,11 +1,13 @@
 ﻿using Identity.Extensions;
 using Identity.Models;
 using Identity.Services;
+using Identity.Services.AspEmail.Services;
 using Identity.ViewModels;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Web;
 
 namespace Identity.Controllers
 {
@@ -13,6 +15,13 @@ namespace Identity.Controllers
     [Route("api/v1/[controller]")]
     public class AuthController : MainController
     {
+        private readonly IEmailService _emailService;
+
+        public AuthController(IEmailService emailService)
+        {
+            _emailService = emailService;
+        }
+
         [HttpPost("Authenticate")]
         public async Task<ActionResult> Authenticate(
             AuthenticateUserViewModel model,
@@ -70,6 +79,7 @@ namespace Identity.Controllers
             {
                 var tokenJwt = await tokenService.GenerateTokenJwtAsync(newUser);
                 var tokenOfConfirmationEmail = await userManager.GenerateEmailConfirmationTokenAsync(newUser);
+                await SendEmailConfirmationTokenAsync(tokenOfConfirmationEmail, newUser);
 
                 return CustomReponse(new
                 {
@@ -87,10 +97,48 @@ namespace Identity.Controllers
             return CustomReponse();
         }
 
-        [HttpPost("ConfirmEmail")]
-        public async Task<ActionResult> ConfirmEmail()
+        [HttpGet("ConfirmEmail")]
+        public async Task<ActionResult> ConfirmEmail(string token, string email, [FromServices] UserManager<ApplicationUser> userManager)
         {
-            return Ok();
+            var user = await userManager.FindByEmailAsync(email);
+
+            if (user == null)
+            {
+                AddProcessingError("There was an error confirming email.");
+                return CustomReponse();
+            }
+
+            var result = await userManager.ConfirmEmailAsync(user, token);
+
+            if (!result.Succeeded)
+            {
+                foreach (var error in result.Errors)
+                {
+                    AddProcessingError(error.Description);
+                }
+
+                return CustomReponse();
+            }
+
+            return CustomReponse("Email successfully confirmed!");
         }
+
+        private async Task SendEmailConfirmationTokenAsync(string tokenOfConfirmationEmail, ApplicationUser user)
+        {
+            string tokenHtmlVersion = HttpUtility.UrlEncode(tokenOfConfirmationEmail);
+
+
+            var emailData = new EmailRequest
+            {
+                ToEmail = user.Email,
+                Subject = $"Welcome {user.UserName}",
+                Body = $@"<h2>Ol&aacute; Fulano de tal, obrigado por se cadastrar.</h2>
+                        <p>Por segurança, precisamos que você clique no link a baixo para confirmar o seu email.</p>
+                        <a href='http://localhost:5000/api/v1/Auth/ConfirmEmail?token={tokenHtmlVersion}&email={user.Email}'> Confirmar E-mail </a>"
+            };
+
+            await _emailService.SendEmailAsync(emailData);
+        }
+
     }
 }

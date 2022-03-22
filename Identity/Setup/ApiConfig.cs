@@ -14,7 +14,7 @@ namespace Identity.Setup
         {
             services.AddDbContext<DataContext>(options =>
                 options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
-
+            services.Configure<EmailConfig>(configuration.GetSection("EmailConfig"));
             services.AddControllers();
 
             return services;

@@ -1,5 +1,6 @@
 ﻿using Identity.Data;
 using Identity.Services;
+using Identity.Services.AspEmail.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -11,6 +12,7 @@ namespace Identity.Setup
         {
             services.AddDbContext<DataContext>();
             services.AddTransient<TokenService, TokenService>();
+            services.AddTransient<IEmailService, EmailService>();
         }
     }
 }
