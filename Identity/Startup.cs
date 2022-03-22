@@ -1,15 +1,8 @@
 using Identity.Setup;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Identity
 {
@@ -24,25 +17,16 @@ namespace Identity
 
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddControllers();
             services.AddSwaggerConfiguration();
+            services.AddApiConfiguration(Configuration);
+            services.AddDependencies(Configuration);
+            services.AddIdentityConfiguration(Configuration);
         }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
-            if (env.IsDevelopment())
-            {
-                app.UseDeveloperExceptionPage();
-            }
             app.UseSwaggerConfiguration();
-            app.UseRouting();
-
-            app.UseAuthorization();
-
-            app.UseEndpoints(endpoints =>
-            {
-                endpoints.MapControllers();
-            });
+            app.UseApiConfiguration(env);
         }
     }
 }
