@@ -1,4 +1,5 @@
-﻿using Identity.Models;
+﻿using Identity.Extensions;
+using Identity.Models;
 using Identity.Services;
 using Identity.ViewModels;
 using Microsoft.AspNetCore.Identity;
@@ -10,7 +11,7 @@ namespace Identity.Controllers
 {
     [ApiController]
     [Route("api/v1/[controller]")]
-    public class AuthController : ControllerBase
+    public class AuthController : MainController
     {
         [HttpPost("Authenticate")]
         public async Task<ActionResult> Authenticate(
@@ -19,42 +20,71 @@ namespace Identity.Controllers
             [FromServices] SignInManager<ApplicationUser> signInManager,
             [FromServices] TokenService tokenService)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState.Values.SelectMany(e => e.Errors));
+            if (!ModelState.IsValid) return CustomReponse(ModelState);
 
-            if (model.ConfirmPassword != model.Password) return BadRequest("Password and ConfirmPassowrd does not match.");
             var user = await userManager.FindByEmailAsync(model.Email);
-            if (user == null) return BadRequest("Email ou senha inválidos.");
+
+            if (user == null) AddProcessingError("Email or password invalid.");
+
+            if (!user.EmailConfirmed) AddProcessingError("Email is not confirmed.");
+
             var result = await signInManager.PasswordSignInAsync(user, model.Password, false, true);
 
             if (result.Succeeded)
             {
-                var token = await tokenService.GenerateTokenAsync(user);
+                var token = await tokenService.GenerateTokenJwtAsync(user);
                 await signInManager.SignInAsync(user, false);
-                return Ok(new
+                return CustomReponse(new
                 {
                     Token = token,
                     UserName = user.UserName,
                     Email = user.Email,
                 });
             }
-
-            return BadRequest("Email ou senha inválidos.");
+            AddProcessingError("Email or password invalid.");
+            return CustomReponse();
         }
 
         [HttpPost("Register")]
-        public async Task<ActionResult> Register([FromServices] UserManager<ApplicationUser> userManager)
+        public async Task<ActionResult> Register(
+            RegisterUserViewModel model,
+            [FromServices] TokenService tokenService,
+            [FromServices] UserManager<ApplicationUser> userManager)
         {
+            if (model.ConfirmPassword != model.Password)
+            {
+                AddProcessingError("Password and ConfirmPassowrd does not match.");
+                return CustomReponse();
+            }
+
             var newUser = new ApplicationUser
             {
-                UserName = "host@mail.com",
-                Email = "host@mail.com",
-                EmailConfirmed = true,
+                UserName = model.UserName,
+                Email = model.Email,
+                EmailConfirmed = false,
             };
 
-            await userManager.CreateAsync(newUser, "123Qwe!");
+            var result = await userManager.CreateAsync(newUser, model.Password);
 
-            return Ok();
+            if (result.Succeeded)
+            {
+                var tokenJwt = await tokenService.GenerateTokenJwtAsync(newUser);
+                var tokenOfConfirmationEmail = await userManager.GenerateEmailConfirmationTokenAsync(newUser);
+
+                return CustomReponse(new
+                {
+                    Token = tokenJwt,
+                    UserName = newUser.UserName,
+                    Email = newUser.Email,
+                });
+            }
+
+            foreach (var error in result.Errors)
+            {
+                AddProcessingError(error.Description);
+            }
+
+            return CustomReponse();
         }
 
         [HttpPost("ConfirmEmail")]

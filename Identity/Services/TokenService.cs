@@ -25,7 +25,7 @@ namespace Identity.Services
             _userManager = userManager;
         }
 
-        public async Task<string> GenerateTokenAsync(ApplicationUser user)
+        public async Task<string> GenerateTokenJwtAsync(ApplicationUser user)
         {
             var identityClaims = new ClaimsIdentity();
 
