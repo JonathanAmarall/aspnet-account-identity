@@ -1,0 +1,22 @@
+version: '3.8'
+services:
+  identity-api:
+    image: jonathan31amaral/identity-api
+    ports:
+      - "5000:80"
+    networks:
+      - identity-network
+  database:
+    image: postgres
+    env_file:
+      - database.env
+    volumes:
+      - database-data:/var/lib/postgresql/data/
+    ports:
+      - "5003:80"
+    networks:
+      - identity-network
+
+networks:
+  identity-network:
+    driver: bridge
