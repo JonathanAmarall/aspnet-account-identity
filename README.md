@@ -19,6 +19,8 @@ dotnet build
 
 - For see documentation, with server running, open in browser the address http://localhost:5000/swagger
 
+![alt text](https://github.com/JonathanAmarall/aspnet-account-identity/blob/master/swagger%20print.png)
+
 ## Contributing
 
 Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
