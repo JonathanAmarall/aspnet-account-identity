@@ -123,22 +123,93 @@ namespace Identity.Controllers
             return CustomReponse("Email successfully confirmed!");
         }
 
+        [HttpPost("RecoveryPassword")]
+        public async Task<ActionResult> RecoveryPassword(
+            RequestRecoveryPasswordViewModel model,
+            [FromServices] UserManager<ApplicationUser> userManager
+        )
+        {
+            var user = await userManager.FindByEmailAsync(model.Email);
+            if (user == null) return BadRequest();
+
+            var token = await userManager.GeneratePasswordResetTokenAsync(user);
+
+            await SendEmailForRequestRecoveryPasswordAsync(token, user);
+
+            return CustomReponse();
+        }
+
+
+        [HttpPost("ResetPasword")]
+        public async Task<ActionResult> ResetPassword(ResetPasswordViewModel model, [FromServices] UserManager<ApplicationUser> userManager)
+        {
+            if (model.Password != model.ConfirmPassword)
+            {
+                AddProcessingError("Password and ConfirmPassword does not match.");
+                return CustomReponse();
+            }
+
+            var user = await userManager.FindByEmailAsync(model.Email);
+
+            if (user == null)
+            {
+                AddProcessingError("User not found.");
+                return CustomReponse();
+            }
+
+            var resetPassResult = await userManager.ResetPasswordAsync(user, model.Token, model.Password);
+
+            if (!resetPassResult.Succeeded)
+            {
+
+                foreach (var error in resetPassResult.Errors)
+                {
+                    AddProcessingError(error.Description);
+                }
+            }
+
+            return CustomReponse();
+        }
+
+        private async Task SendEmailForRequestRecoveryPasswordAsync(string token, ApplicationUser user)
+        {
+            string tokenHtmlVersion = HttpUtility.UrlEncode(token);
+
+            var emailData = new EmailRequest
+            {
+                ToEmail = user.Email,
+                Subject = $"Recovery Password at {user.UserName}",
+                Body = $@"<h2>Hello {user.UserName}, we received a request for recovery password.</h2>
+                        <p>If it wasn't you, please disregard.</p>
+                        <a href='Send-this-your-frontend-url?token={tokenHtmlVersion}&email={user.Email}'>Recovery Password example</a>"
+            };
+
+            await _emailService.SendEmailAsync(emailData);
+        }
+
         private async Task SendEmailConfirmationTokenAsync(string tokenOfConfirmationEmail, ApplicationUser user)
         {
             string tokenHtmlVersion = HttpUtility.UrlEncode(tokenOfConfirmationEmail);
-
 
             var emailData = new EmailRequest
             {
                 ToEmail = user.Email,
                 Subject = $"Welcome {user.UserName}",
-                Body = $@"<h2>Ol&aacute; Fulano de tal, obrigado por se cadastrar.</h2>
+                Body = $@"<h2>Ol&aacute; {user.UserName}, obrigado por se cadastrar.</h2>
                         <p>Por segurança, precisamos que você clique no link a baixo para confirmar o seu email.</p>
-                        <a href='http://localhost:5000/api/v1/Auth/ConfirmEmail?token={tokenHtmlVersion}&email={user.Email}'> Confirmar E-mail </a>"
+                        <a href='{GetBaseUrl()}/api/v1/Auth/ConfirmEmail?token={tokenHtmlVersion}&email={user.Email}'> Confirmar E-mail </a>"
             };
 
             await _emailService.SendEmailAsync(emailData);
         }
+
+        private string GetBaseUrl()
+        {
+            var request = HttpContext.Request;
+            var _baseURL = $"{request.Scheme}://{request.Host}"; // http://localhost:5000
+            return _baseURL;
+        }
+
 
     }
 }
