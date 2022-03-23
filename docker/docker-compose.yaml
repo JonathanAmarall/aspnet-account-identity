@@ -4,6 +4,8 @@ services:
     image: jonathan31amaral/identity-api
     ports:
       - "5000:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
     networks:
       - identity-network
   database:
@@ -11,9 +13,7 @@ services:
     env_file:
       - database.env
     volumes:
-      - database-data:/var/lib/postgresql/data/
-    ports:
-      - "5003:80"
+      - /:/var/lib/postgresql/data/
     networks:
       - identity-network
 

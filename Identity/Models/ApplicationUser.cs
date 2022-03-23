@@ -9,7 +9,7 @@ namespace Identity.Models
         public ApplicationUser()
         {
             IsActive = true;
-            CreatedAt = DateTime.UtcNow;   
+            CreatedAt = DateTime.UtcNow;
         }
 
         public bool IsActive { get; private set; }
